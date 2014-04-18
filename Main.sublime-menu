@@ -14,7 +14,8 @@
             { "command": "sc_stop_all_sounds", "caption": "Stop all sounds", "mnemonic": "s" },
             { "command": "sc_get_help", "caption": "Get help for selected word on SCCode.org", "mnemonic": "h" },
             { "command": "sc_show_console", "caption": "Show console", "mnemonic": "c" },
-            { "command": "sc_hide_console", "caption": "Hide console", "mnemonic": "i" }
+            { "command": "sc_hide_console", "caption": "Hide console", "mnemonic": "i" },
+            { "command": "sc_clear_console", "caption": "Clear console", "mnemonic": "r" }
         ]
     }
   ]
