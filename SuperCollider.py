@@ -38,7 +38,7 @@ class Sc_startCommand(sublime_plugin.WindowCommand):
             sc_dir = settings.get("sc_dir")
             sc_exe = settings.get("sc_exe")
             print "Starting SuperCollider : "+sc_dir+sc_exe
-            Sc_startCommand.sclang_process = subprocess.Popen([sc_exe, '-i', 'sublime'], cwd=sc_dir, bufsize=1, close_fds=ON_POSIX, stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr = subprocess.STDOUT, universal_newlines=True, shell=True)
+            Sc_startCommand.sclang_process = subprocess.Popen([sc_exe, '-i', 'sced'], cwd=sc_dir, bufsize=1, close_fds=ON_POSIX, stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
             Sc_startCommand.sclang_queue = Queue()
             Sc_startCommand.sclang_thread = threading.Thread(target=enqueue_output, args=(Sc_startCommand.sclang_process.stdout, Sc_startCommand.sclang_queue))
             Sc_startCommand.sclang_thread.daemon = True # thread dies with the program
@@ -84,6 +84,7 @@ class Sc_stopCommand(sublime_plugin.WindowCommand):
         if Sc_startCommand.sclang_thread is not None and Sc_startCommand.sclang_thread.isAlive():
             Sc_startCommand.sclang_process.stdin.write("0.exit;\x0c")
             Sc_startCommand.sclang_process.stdin.flush()
+            
 
 # command to send the current line to sclang
 class Sc_sendCommand(sublime_plugin.WindowCommand):
@@ -100,9 +101,10 @@ class Sc_sendCommand(sublime_plugin.WindowCommand):
             sel = view.sel()
             region = view.line(sel[0])
             lines = view.substr(region).split("\n")
+            #wrapping in bytes for multiline on macosx
             for l in lines:
-                Sc_startCommand.sclang_process.stdin.write(l.encode("utf-8","ignore")+"\n")
-            Sc_startCommand.sclang_process.stdin.write("\x0c")
+                Sc_startCommand.sclang_process.stdin.write(bytes(l.encode("utf-8","ignore")+"\n"))
+            Sc_startCommand.sclang_process.stdin.write(bytes("\x0c"))
             Sc_startCommand.sclang_process.stdin.flush()
 
 # command to show the supercollider console
@@ -112,19 +114,28 @@ class Sc_show_consoleCommand(sublime_plugin.WindowCommand):
             Sc_startCommand.output_view.show(Sc_startCommand.output_view.size()) # scroll down
             self.window.run_command("show_panel", {"panel": "output." + Sc_startCommand.panel_name})
 
+
 # hide console
 class Sc_hide_consoleCommand(sublime_plugin.WindowCommand):
     def run(self):
         if Sc_startCommand.output_view is not None:
             Sc_startCommand.output_view.show(Sc_startCommand.output_view.size()) # scroll down
-            self.window.run_command("hide_panel", {"panel": "output." + Sc_startCommand.panel_name})
+            self.window.run_command("hide_panel", {"panel": "output." + Sc_startCommand.panel_name})# hide console
+
+# clear console
+class Sc_clear_consoleCommand(sublime_plugin.WindowCommand):
+    def run(self):
+        if Sc_startCommand.output_view is not None:
+            Sc_startCommand.output_view.run_command("select_all")
+            Sc_startCommand.output_view.run_command("right_delete")
 
 # stop all sounds
 class Sc_stop_all_soundsCommand(sublime_plugin.WindowCommand):
     def run(self):
         if Sc_startCommand.sclang_thread is not None and Sc_startCommand.sclang_thread.isAlive():
-            Sc_startCommand.sclang_process.stdin.write("thisProcess.stop;\n\x0c")
+            Sc_startCommand.sclang_process.stdin.write(bytes("thisProcess.stop;\x1b"))
             Sc_startCommand.sclang_process.stdin.flush()
+
 
 # search for help on current word on SCCode.org
 class Sc_get_helpCommand(sublime_plugin.WindowCommand):
@@ -138,4 +149,7 @@ class Sc_get_helpCommand(sublime_plugin.WindowCommand):
         sel = view.sel()
         point = sel[0]
         word = view.word(point)
-        webbrowser.open_new_tab(Sc_get_helpCommand.sccode_search_url+view.substr(word))
+        if Sc_startCommand.sclang_thread is not None and Sc_startCommand.sclang_thread.isAlive():
+            #for schelpbrowser with possibility to run examples
+            Sc_startCommand.sclang_process.stdin.write(bytes('HelpBrowser.openHelpFor(\"' + view.substr(word) + '\");\x1b'))
+            Sc_startCommand.sclang_process.stdin.flush()
